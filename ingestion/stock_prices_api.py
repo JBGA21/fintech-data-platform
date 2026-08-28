@@ -69,9 +69,9 @@ def fetch_historical_prices(symbol: str, from_date: str, to_date: str) -> list:
 
 
 def save_raw_data(
-    symbol: str, 
-    data: list, 
-    from_date: str, 
+    symbol: str,
+    data: list,
+    from_date: str,
     to_date: str
 ) -> Path:
     """
@@ -120,6 +120,8 @@ def main():
 
     to_date = today
 
+    failed_symbols = []
+
     print(
         f"Ingestion window: "
         f"{from_date} → {to_date}"
@@ -155,6 +157,7 @@ def main():
                 f"{symbol}: "
                 f"API request failed: {error}"
             )
+            failed_symbols.append(symbol)
 
         except Exception as error:
 
@@ -162,6 +165,13 @@ def main():
                 f"{symbol}: "
                 f"unexpected error: {error}"
             )
+            failed_symbols.append(symbol)
+    
+    if failed_symbols:
+        raise RuntimeError(
+            f"Ingestion failed for symbols: "
+            f"{', '.join(failed_symbols)}"
+        )
 
 if __name__ == "__main__":
     main()
