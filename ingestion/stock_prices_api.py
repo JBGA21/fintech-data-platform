@@ -1,18 +1,18 @@
 import json
-import os
 from datetime import datetime, timezone, timedelta
 from pathlib import Path
 
 import requests
-from dotenv import load_dotenv
 
 # ---------------------------------------------------------
 # Configuration
 # ---------------------------------------------------------
 
-load_dotenv()
+API_KEY = dbutils.secrets.get(
+    scope="my-secrets",
+    key="FMP_API_KEY"
+)
 
-API_KEY = os.getenv("FMP_API_KEY")
 
 if not API_KEY:
     raise ValueError("FMP_API_KEY is not configured")
@@ -28,8 +28,7 @@ SYMBOLS = [
     "TSLA",
 ]
 
-OUTPUT_DIR = Path("data/raw/fmp")
-OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+OUTPUT_DIR = Path("/Volumes/fintech/bronze/raw_files/")
 
 # Number of calendar days to reprocess
 # This gives us a small lookback window in case
@@ -69,15 +68,33 @@ def fetch_historical_prices(symbol: str, from_date: str, to_date: str) -> list:
     return response.json()
 
 
-def save_raw_data(symbol: str, data: list, from_date: str, to_date: str) -> Path:
+def save_raw_data(
+    symbol: str, 
+    data: list, 
+    from_date: str, 
+    to_date: str
+) -> Path:
     """
-    Save raw API response as JSON.
+    Save raw API response as JSON partitioned by ingestion date.
     """
 
     ingestion_timestamp = datetime.now(timezone.utc)
 
-    output_file = (
+    output_dir = (
         OUTPUT_DIR
+        / f"source=FMP"
+        / f"year={ingestion_timestamp:%Y}"
+        / f"month={ingestion_timestamp:%m}"
+        / f"day={ingestion_timestamp:%d}"
+    )
+
+    output_dir.mkdir(
+        parents=True,
+        exist_ok=True
+    )
+
+    output_file = (
+        output_dir
         / (
             f"{symbol}_"
             f"{from_date}_{to_date}_"
@@ -86,7 +103,8 @@ def save_raw_data(symbol: str, data: list, from_date: str, to_date: str) -> Path
     )
 
     with open(output_file, "w", encoding="utf-8") as file:
-        json.dump(data, file, indent=2)
+        for record in data:
+            file.write(json.dumps(record) + "\n")
 
     return output_file
 
